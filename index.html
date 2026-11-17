@@ -92,13 +92,29 @@ header .gear{width:40px;height:40px;border-radius:12px;display:grid;place-items:
 #bar .sum{text-align:left}
 .tgl{width:100%;height:46px;border-radius:12px;background:var(--bg);font-weight:600;font-size:14px}
 .tgl.on{background:var(--acc2);color:var(--acc)}
+header .hb{display:flex;gap:4px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.stat{background:var(--bg);border-radius:12px;padding:8px;font-size:12px;color:var(--mute);line-height:1.45}
+.stat b{display:block;color:var(--ink);font-size:17px}
+.stat.on{outline:2px solid var(--acc)}
+.dz{font-size:13px;line-height:1.7;background:var(--bg);border-radius:12px;padding:8px 10px;margin-bottom:8px}
+.ord{border:1px solid var(--line);border-radius:14px;padding:9px 10px;margin-top:6px;font-size:13.5px;line-height:1.45}
+.ord .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ord .it{color:var(--mute);margin:3px 0 6px}
+.chip{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px}
+.chip.wait{background:#fdf0cf;color:#8a5a00}.chip.paid{background:#dcf2e6;color:var(--ok)}.chip.lost{background:#eee;color:#888}
+.ord .acts{display:flex;gap:6px}
+.ord .acts button{height:36px;padding:0 12px;border-radius:10px;background:var(--bg);font-weight:600;font-size:13px}
+.ord .acts .pay{background:var(--ok);color:#fff;flex:1}
+.ord.lost{opacity:.6}
 </style>
 </head>
 <body>
 
 <header>
   <h1>🧾 สรุปออเดอร์</h1>
-  <button class="gear" id="openSet" aria-label="ตั้งค่า">⚙︎</button>
+  <div class="hb"><button class="gear" id="openHs" aria-label="ประวัติออเดอร์">📒</button>
+  <button class="gear" id="openSet" aria-label="ตั้งค่า">⚙︎</button></div>
 </header>
 
 <div id="cart"></div>
@@ -140,16 +156,27 @@ header .gear{width:40px;height:40px;border-radius:12px;display:grid;place-items:
       <label>สินค้า (1 บรรทัด = 1 ลาย)</label>
       <textarea id="catTxt" rows="7" spellcheck="false"></textarea>
       <div class="help">รูปแบบ: <code>ชื่อลาย | ราคา | สี, สี | ไซซ์, ไซซ์</code><br>เช่น <code>Court | 420 | Black, White | S, M, L, XL</code></div>
-      <label>ส่วนลด Bundle (จำนวนตัว : % ลด)</label>
+      <label>ส่วนลด Bundle (จำนวนตัว : ส่วนลด)</label>
       <input id="tiers" inputmode="text" spellcheck="false">
-      <div class="help">เช่น <code>2:5, 3:10</code> = ซื้อ 2 ตัวลด 5%, ตั้งแต่ 3 ตัวขึ้นไปลด 10%<br>เพิ่มขั้นได้เรื่อย ๆ เช่น <code>2:5, 3:10, 5:15</code></div>
+      <div class="help">ลดเป็น % : <code>2:5, 3:10</code> = ซื้อ 2 ตัวลด 5%, ตั้งแต่ 3 ตัวลด 10%<br>ลดเป็นบาท ใส่ ฿ หรือ บ : <code>2:50฿, 3:100฿, 4:150฿</code> = 2 ตัวลด 50 บาท ฯลฯ<br>ใช้ขั้นสูงสุดที่ถึง</div>
       <label>ข้อความหัว</label><input id="head">
       <label>ข้อความท้าย (ไม่ใส่ก็ได้ เช่น เลขบัญชี)</label><textarea id="foot" rows="3"></textarea>
-      <div class="help">ข้อมูลเก็บในเบราว์เซอร์ของเครื่องนี้ ถ้าล้างข้อมูล Safari อาจหาย แนะนำคัดลอกช่องสินค้าเก็บไว้ในโน้ตด้วย</div>
+      <div class="help">ข้อมูลและประวัติออเดอร์เก็บในเบราว์เซอร์ของเครื่องนี้ ถ้าล้างข้อมูล Safari อาจหาย แนะนำคัดลอกช่องสินค้าเก็บไว้ในโน้ต และกด 📒 → ส่งออก CSV เก็บไว้เป็นระยะ</div>
     </div>
     <div class="row2">
       <button class="sec" data-close>ยกเลิก</button>
       <button class="pri" id="saveSet">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="hsSheet">
+  <div class="panel">
+    <h2>ประวัติออเดอร์</h2>
+    <div class="scroll" id="hsBody"></div>
+    <div class="row2">
+      <button class="sec" data-close>ปิด</button>
+      <button class="pri" id="csv">ส่งออก CSV</button>
     </div>
   </div>
 </div>
@@ -164,7 +191,9 @@ const DEFAULT_CAT=`Niceshot | 420 | Black, White | S, M, L, XL
 Vacation | 420 | Black, White | S, M, L, XL
 Court | 420 | Black, White | S, M, L, XL`;
 let state={catTxt:LS.get('cat',DEFAULT_CAT),head:LS.get('head','รับออเดอร์ค่ะ'),foot:LS.get('foot',''),
-  tiers:LS.get('tiers','2:5, 3:10'),cart:LS.get('cart',[]),ship:LS.get('ship',''),bOn:LS.get('bOn',true)};
+  tiers:LS.get('tiers','2:5, 3:10'),cart:LS.get('cart',[]),ship:LS.get('ship',''),bOn:LS.get('bOn',true),
+  orders:LS.get('orders',[]),cur:LS.get('cur',null)};
+const LOST_DAYS=3, DAY=864e5;
 let catalog=parseCat(state.catTxt), pick={};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -205,14 +234,15 @@ function addLine(zi,btn){
   save();renderCart();
 }
 function parseTiers(t){return String(t).split(/[,\n]/).map(x=>x.split(':')).filter(a=>a.length===2)
-  .map(a=>({n:num(a[0]),p:num(a[1])})).filter(x=>x.n>0&&x.p>0).sort((a,b)=>a.n-b.n)}
-function tierPct(n){let p=0;parseTiers(state.tiers).forEach(t=>{if(n>=t.n)p=t.p});return p}
+  .map(a=>({n:num(a[0]),p:num(a[1]),amt:/[฿บ]/.test(a[1])})).filter(x=>x.n>0&&x.p>0).sort((a,b)=>a.n-b.n)}
+function tierOf(n){let r=null;parseTiers(state.tiers).forEach(t=>{if(n>=t.n)r=t});return r}
+function dLabel(t){return t.amt?'-'+fmt(t.p)+' บาท':fmt(t.p)+'%'}
 function minTier(){const t=parseTiers(state.tiers);return t.length?t[0].n:0}
 function totals(){
   const n=state.cart.reduce((a,l)=>a+l.q,0),sub=state.cart.reduce((a,l)=>a+l.q*l.price,0);
-  const pct=state.bOn?tierPct(n):0, bOk=pct>0;
-  const disc=bOk?Math.round(sub*pct/100):0, ship=num(state.ship);
-  return {n,sub,bOk,pct,disc,ship,grand:sub-disc+ship};
+  const tier=state.bOn?tierOf(n):null, bOk=!!tier;
+  const disc=bOk?(tier.amt?Math.min(tier.p,sub):Math.round(sub*tier.p/100)):0, ship=num(state.ship);
+  return {n,sub,bOk,tier,lbl:bOk?dLabel(tier):'',disc,ship,grand:sub-disc+ship};
 }
 function renderCart(){
   const c=$('cart');
@@ -226,7 +256,7 @@ function renderCart(){
       save();renderCart()});
     c.scrollTop=c.scrollHeight}
   const t=totals();
-  $('cnt').textContent=`${t.n} ตัว${t.bOk?' · Bundle '+fmt(t.pct)+'% -'+fmt(t.disc):''} · แตะเพื่อดู`;
+  $('cnt').textContent=`${t.n} ตัว${t.bOk?' · Bundle -'+fmt(t.disc):''} · แตะเพื่อดู`;
   $('tot').textContent='฿'+fmt(t.grand);
   $('copy').disabled=!state.cart.length;
 }
@@ -237,20 +267,20 @@ function buildText(){
   L.push('');
   const units=[];state.cart.forEach(l=>{for(let k=0;k<l.q;k++)units.push(fmt(l.price))});
   L.push('ราคา : '+(units.length>1?units.join('+')+'='+fmt(t.sub):fmt(t.sub)));
-  if(t.bOk)L.push(`ส่วนลด : Bundle ${fmt(t.pct)}%`);
+  if(t.bOk)L.push(t.tier.amt?`ส่วนลด : Bundle -${fmt(t.disc)}`:`ส่วนลด : Bundle ${fmt(t.tier.p)}% (-${fmt(t.disc)})`);
   L.push('ค่าส่ง : '+(t.ship?fmt(t.ship):'Free'));
   L.push('');L.push(`รวม ${fmt(t.grand)} บาท`);
   if(state.foot.trim()){L.push('');L.push(state.foot.trim())}
   return L.join('\n');
 }
 function renderPv(){$('preview').textContent=buildText();
-  const t=totals();$('bdl').textContent=state.bOn?(t.bOk?`เปิด · ${fmt(t.pct)}% -${fmt(t.disc)}`:`เปิด (ต้อง ${minTier()} ตัวขึ้นไป)`):'ปิด';
+  const t=totals();$('bdl').textContent=state.bOn?(t.bOk?`เปิด · ${t.lbl} = -${fmt(t.disc)}`:`เปิด (ต้อง ${minTier()} ตัวขึ้นไป)`):'ปิด';
   $('bdl').classList.toggle('on',state.bOn)}
 async function copyText(x){try{await navigator.clipboard.writeText(x);return true}catch(e){}
   try{const ta=document.createElement('textarea');ta.value=x;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:-1000px;font-size:16px';
     document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,x.length);const ok=document.execCommand('copy');ta.remove();return ok}catch(e){return false}}
 async function doCopy(){const ok=await copyText(buildText());
-  if(ok){toast('คัดลอกแล้ว ✓ วางในแชทได้เลย');$('pvSheet').classList.remove('on')}
+  if(ok){logOrder();toast('คัดลอกแล้ว ✓ บันทึกเป็น "รอโอน"');$('pvSheet').classList.remove('on')}
   else{renderPv();$('pvSheet').classList.add('on');toast('คัดลอกอัตโนมัติไม่ได้ กดค้างที่ข้อความเพื่อคัดลอก',true);
     const r=document.createRange();r.selectNodeContents($('preview'));const g=getSelection();g.removeAllRanges();g.addRange(r)}}
 function toast(m,bad){const t=$('toast');t.textContent=m;t.style.background=bad?'#b33':'';t.classList.add('on');
@@ -262,14 +292,72 @@ $('openPv').onclick=()=>{if(!state.cart.length)return;$('ship').value=state.ship
 $('ship').addEventListener('input',e=>{state.ship=e.target.value;save();renderPv();renderCart()});
 $('bdl').onclick=()=>{state.bOn=!state.bOn;save();renderPv();renderCart()};
 let arm=0;$('clear').onclick=()=>{if(!state.cart.length)return;
-  if(Date.now()-arm<2500){state.cart=[];state.ship='';state.bOn=true;pick={};save();renderAll();$('clear').textContent='ล้าง';toast('เริ่มออเดอร์ใหม่')}
+  if(Date.now()-arm<2500){state.cart=[];state.ship='';state.bOn=true;state.cur=null;pick={};save();renderAll();$('clear').textContent='ล้าง';toast('เริ่มออเดอร์ใหม่')}
   else{arm=Date.now();$('clear').textContent='แตะอีกครั้ง';setTimeout(()=>$('clear').textContent='ล้าง',2500)}};
 $('openSet').onclick=()=>{$('catTxt').value=state.catTxt;$('head').value=state.head;$('foot').value=state.foot;
   $('tiers').value=state.tiers;$('setSheet').classList.add('on')};
 $('saveSet').onclick=()=>{state.catTxt=$('catTxt').value;state.head=$('head').value;state.foot=$('foot').value;
   state.tiers=$('tiers').value;catalog=parseCat(state.catTxt);pick={};
   save();renderAll();$('setSheet').classList.remove('on');toast('บันทึกแล้ว ✓')};
-function save(){for(const k of ['head','foot','tiers','cart','ship','bOn'])LS.set(k,state[k]);LS.set('cat',state.catTxt)}
+function save(){for(const k of ['head','foot','tiers','cart','ship','bOn','orders','cur'])LS.set(k,state[k]);LS.set('cat',state.catTxt)}
+
+/* ---------- Order log ---------- */
+// Copying = order summarised ("wait"). Copying again before ล้าง updates the same order.
+function logOrder(){
+  const t=totals();
+  const old=state.cur&&state.orders.find(o=>o.id===state.cur);
+  const rec={id:old?old.id:'o'+Date.now().toString(36),ts:old?old.ts:Date.now(),st:old?old.st:'wait',paidTs:old?old.paidTs:null,
+    items:state.cart.map(l=>({name:l.name,color:l.color,size:l.size,price:l.price,q:l.q})),n:t.n,sub:t.sub,disc:t.disc,ship:t.ship,grand:t.grand};
+  if(old)state.orders[state.orders.indexOf(old)]=rec;else state.orders.unshift(rec);
+  state.cur=rec.id;save();
+}
+function stOf(o){return o.st==='paid'?'paid':(Date.now()-o.ts>LOST_DAYS*DAY?'lost':'wait')}
+const ST={wait:'รอโอน',paid:'โอนแล้ว',lost:'ไม่โอน'};
+function pad(n){return String(n).padStart(2,'0')}
+function ymd(ts){const d=new Date(ts);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+function hm(ts){const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function dayStart(back){const d=new Date();d.setHours(0,0,0,0);return d.getTime()-back*DAY}
+function saleTs(o){return o.ts} // count by summary date
+let hsRange=7, delArm={};
+function renderHs(){
+  const R=[['วันนี้',0],['7 วัน',7],['30 วัน',30]];
+  const stat=d=>{const from=dayStart(d===0?0:d-1);const os=state.orders.filter(o=>saleTs(o)>=from);
+    const paid=os.filter(o=>stOf(o)==='paid');
+    return {all:os.length,paid:paid.length,units:paid.reduce((a,o)=>a+o.n,0),rev:paid.reduce((a,o)=>a+o.grand,0),paidOs:paid}};
+  let h='<div class="stats">'+R.map(([l,d])=>{const s=stat(d);
+    return `<button class="stat${hsRange===d?' on':''}" data-r="${d}">${l}<b>${s.units} ตัว</b>฿${fmt(s.rev)}<br>โอน ${s.paid}/${s.all}${s.all?' ('+Math.round(s.paid/s.all*100)+'%)':''}</button>`}).join('')+'</div>';
+  const cur=stat(hsRange), by={};
+  cur.paidOs.forEach(o=>o.items.forEach(i=>{by[i.name]=(by[i.name]||0)+i.q}));
+  const ks=Object.keys(by).sort((a,b)=>by[b]-by[a]);
+  h+=`<div class="dz"><b>ขายแล้ว (โอนแล้ว) แยกลาย · ${R.find(r=>r[1]===hsRange)[0]}</b><br>${ks.length?ks.map(k=>`${esc(k)} ${by[k]}`).join(' · '):'ยังไม่มี'}</div>`;
+  const list=state.orders.slice(0,150);
+  if(!list.length)h+='<div class="empty">ยังไม่มีออเดอร์<br>กด 📋 คัดลอก แล้วออเดอร์จะถูกบันทึกเป็น "รอโอน"</div>';
+  h+=list.map(o=>{const s=stOf(o);
+    return `<div class="ord ${s}"><div class="top"><span>${ymd(o.ts).slice(5)} ${hm(o.ts)} · <b>${o.n} ตัว ฿${fmt(o.grand)}</b></span><span class="chip ${s}">${ST[s]}</span></div>
+    <div class="it">${o.items.map(i=>esc([i.name,i.color,i.size].filter(Boolean).join('/'))+(i.q>1?' ×'+i.q:'')).join(', ')}</div>
+    <div class="acts">${s==='paid'?`<button data-a="unpay" data-id="${o.id}">↺ ยังไม่โอน</button>`:`<button class="pay" data-a="pay" data-id="${o.id}">✓ โอนแล้ว</button>`}
+    <button data-a="del" data-id="${o.id}">${delArm[o.id]&&Date.now()-delArm[o.id]<2500?'แตะอีกครั้งเพื่อลบ':'ลบ'}</button></div></div>`}).join('');
+  $('hsBody').innerHTML=h;
+  $('hsBody').querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{hsRange=+b.dataset.r;renderHs()});
+  $('hsBody').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const o=state.orders.find(x=>x.id===b.dataset.id);if(!o)return;
+    if(b.dataset.a==='pay'){o.st='paid';o.paidTs=Date.now();toast('บันทึกว่าโอนแล้ว ✓')}
+    else if(b.dataset.a==='unpay'){o.st='wait';o.paidTs=null}
+    else{if(delArm[o.id]&&Date.now()-delArm[o.id]<2500){state.orders.splice(state.orders.indexOf(o),1);if(state.cur===o.id)state.cur=null;delete delArm[o.id]}
+      else{delArm[o.id]=Date.now();setTimeout(()=>{if($('hsSheet').classList.contains('on'))renderHs()},2600)}}
+    save();renderHs()});
+}
+function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function buildCsv(){
+  const rows=[['date','time','order_id','status','design','color','size','qty','unit_price','order_units','order_discount','order_shipping','order_total']];
+  state.orders.slice().reverse().forEach(o=>{const s=stOf(o);o.items.forEach(i=>rows.push([ymd(o.ts),hm(o.ts),o.id,s,i.name,i.color,i.size,i.q,i.price,o.n,o.disc,o.ship,o.grand]))});
+  return '﻿'+rows.map(r=>r.map(csvCell).join(',')).join('\n');
+}
+$('openHs').onclick=()=>{renderHs();$('hsSheet').classList.add('on')};
+$('csv').onclick=async()=>{const txt=buildCsv(),name=`orders-${ymd(Date.now())}.csv`;
+  try{const f=new File([txt],name,{type:'text/csv'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});return}}catch(e){if(e&&e.name==='AbortError')return}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('ดาวน์โหลด CSV แล้ว')}
+  catch(e){const ok=await copyText(txt);toast(ok?'คัดลอก CSV แล้ว':'ส่งออกไม่ได้',!ok)}};
 function renderAll(){renderCart();renderPicker()}
 renderAll();
 })();
